@@ -1,9 +1,8 @@
-import type { Dispatch, SVGProps, SetStateAction } from 'react'
+import type { SVGProps } from 'react'
 import type { z } from 'zod'
-import type { TodoStatusSchema } from '@/server/api/schemas/todo-schemas'
+import type { TodoSchema } from '@/server/api/schemas/todo-schemas'
 
 import { useAutoAnimate } from '@formkit/auto-animate/react'
-import { useState } from 'react'
 import * as Checkbox from '@radix-ui/react-checkbox'
 
 import { api } from '@/utils/client/api'
@@ -67,18 +66,14 @@ import { api } from '@/utils/client/api'
  *  - https://auto-animate.formkit.com
  */
 
-type TodoStatus = z.infer<typeof TodoStatusSchema> | 'all'
+type TodoData = z.infer<typeof TodoSchema>[]
 
-export const TodoList = () => {
-  const [status, setStatus] = useState('all' as TodoStatus)
+export const TodoList = ({ data }: { data: TodoData }) => {
   const [parent] = useAutoAnimate({
-    duration: 1000,
+    duration: 500,
   })
 
   const apiContext = api.useContext()
-  const { data: todos = [] } = api.todo.getAll.useQuery({
-    statuses: ['completed', 'pending'],
-  })
 
   const { mutate: deleteItem } = api.todo.delete.useMutation({
     onSuccess: () => apiContext.todo.getAll.refetch(),
@@ -87,102 +82,57 @@ export const TodoList = () => {
     onSuccess: () => apiContext.todo.getAll.refetch(),
   })
 
-  const filteredItems = (status: TodoStatus) =>
-    status === 'all' ? todos : todos.filter((todo) => todo.status === status)
-
   return (
-    <>
-      <div className="flex">
-        <StatusTag
-          setStatus={setStatus}
-          status="all"
-          checked={status === 'all'}
-        />
-        <StatusTag
-          setStatus={setStatus}
-          status="pending"
-          checked={status === 'pending'}
-        />
-        <StatusTag
-          setStatus={setStatus}
-          status="completed"
-          checked={status === 'completed'}
-        />
-      </div>
-
-      <ul className="grid grid-cols-1 gap-y-3 pt-10" ref={parent}>
-        {filteredItems(status).map((item) => (
-          <li key={item.id}>
-            <div
-              className={`${
-                item.status === 'completed' && 'bg-gray-50'
-              } flex items-center rounded-12 border border-gray-200 px-4 py-3 shadow-sm`}
+    <ul className="grid grid-cols-1 gap-y-3" ref={parent}>
+      {data.map((item) => (
+        <li key={item.id}>
+          <div
+            className={`${
+              item.status === 'completed' && 'bg-gray-50'
+            } flex items-center rounded-12 border border-gray-200 px-4 py-3 shadow-sm`}
+          >
+            <Checkbox.Root
+              id={String(item.id)}
+              className="flex h-6 w-6 items-center justify-center rounded-6 border border-gray-300 focus:border-gray-700 focus:outline-none data-[state=checked]:border-gray-700 data-[state=checked]:bg-gray-700"
+              onClick={() =>
+                updateItem({
+                  todoId: item.id,
+                  status: item.status === 'completed' ? 'pending' : 'completed',
+                })
+              }
+              checked={item.status === 'completed'}
             >
-              <Checkbox.Root
-                id={String(item.id)}
-                className="flex h-6 w-6 items-center justify-center rounded-6 border border-gray-300 focus:border-gray-700 focus:outline-none data-[state=checked]:border-gray-700 data-[state=checked]:bg-gray-700"
-                onClick={() =>
-                  updateItem({
-                    todoId: item.id,
-                    status:
-                      item.status === 'completed' ? 'pending' : 'completed',
-                  })
-                }
-                checked={item.status === 'completed'}
-              >
-                <Checkbox.Indicator>
-                  <CheckIcon
-                    className="h-4 w-4 text-white"
-                    onClick={() =>
-                      updateItem({
-                        todoId: item.id,
-                        status:
-                          item.status === 'completed' ? 'pending' : 'completed',
-                      })
-                    }
-                  />
-                </Checkbox.Indicator>
-              </Checkbox.Root>
+              <Checkbox.Indicator>
+                <CheckIcon
+                  className="h-4 w-4 text-white"
+                  onClick={() =>
+                    updateItem({
+                      todoId: item.id,
+                      status:
+                        item.status === 'completed' ? 'pending' : 'completed',
+                    })
+                  }
+                />
+              </Checkbox.Indicator>
+            </Checkbox.Root>
 
-              <label
-                className={`block flex-grow pl-3 font-medium ${
-                  item.status === 'completed' &&
-                  'font-medium text-gray-500 line-through'
-                }`}
-                htmlFor={String(item.id)}
-              >
-                {item.body}
-              </label>
-              <XMarkIcon
-                className="h-6 w-6"
-                onClick={() => deleteItem({ id: item.id })}
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </>
-  )
-}
-
-const StatusTag = ({
-  status,
-  setStatus,
-  checked,
-}: {
-  checked: boolean
-  status: TodoStatus
-  setStatus: Dispatch<SetStateAction<TodoStatus>>
-}) => {
-  return (
-    <div
-      className={`mr-2 rounded-full border px-6 py-3 font-sans text-sm font-bold capitalize ${
-        checked ? 'bg-gray-700 text-white' : ' border-gray-200 text-gray-700'
-      }`}
-      onClick={() => setStatus(status)}
-    >
-      {status}
-    </div>
+            <label
+              className={`block flex-grow pl-3 font-medium ${
+                item.status === 'completed' &&
+                'font-medium text-gray-500 line-through'
+              }`}
+              htmlFor={String(item.id)}
+            >
+              {item.body}
+            </label>
+            <XMarkIcon
+              className="h-6 w-6"
+              onClick={() => deleteItem({ id: item.id })}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
   )
 }
 
